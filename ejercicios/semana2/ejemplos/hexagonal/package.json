@@ -1,0 +1,14 @@
+{
+  "name": "hexagonal-architecture-example",
+  "version": "1.0.0",
+  "description": "Ejemplo de arquitectura hexagonal para administración de usuarios",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js"
+  },
+  "keywords": ["hexagonal", "architecture", "clean", "ports", "adapters"],
+  "author": "TADS_II_G2",
+  "license": "MIT"
+}
