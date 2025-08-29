@@ -60,12 +60,6 @@ flowchart TB
   
   InMemoryRepo --> MemoryMap
 
-  %% Styles
-  classDef presentation fill:#e8f5e8,stroke:#2e7d2e,stroke-width:2px
-  classDef application fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-  classDef domain fill:#fff0f5,stroke:#c2185b,stroke-width:3px
-  classDef infrastructure fill:#f0f8ff,stroke:#4682b4,stroke-width:2px
-  
   class PRESENTATION presentation
   class APPLICATION application
   class DOMAIN domain
