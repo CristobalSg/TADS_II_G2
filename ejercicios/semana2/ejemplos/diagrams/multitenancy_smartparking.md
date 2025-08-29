@@ -1,63 +1,107 @@
-# Diagrama: Enfoque Multitenant en SmartParkingTwo
+# Diagrama: Multitenancy Implementado en SmartParkingTwo - User Domain
 
-Descripción corta: diagrama que explica cómo se implementa multitenancy en SmartParkingTwo (conceptual), mostrando separación de datos, contexto por tenant y adaptadores necesarios.
+Diagrama que muestra la implementación real de multitenancy en SmartParkingTwo para User domain, basado en el código actual del proyecto.
 
 ```mermaid
-flowchart LR
-  subgraph EXTERNAL[Clientes]
-    TenantAdmin1[Tenant Admin A]
-    TenantAdmin2[Tenant Admin B]
+flowchart TD
+  subgraph T[Tenants]
+    H[Hospital Users]
+    M[Mall Users]
+    U[University Users]
   end
 
-  subgraph GATEWAY[Gateway / API Layer]
-    API[API Gateway / Controllers]
-    Auth[Auth Service (tokens con tenantId)]
+  subgraph C[Controller]
+    UC[UserController]
   end
 
-  subgraph APPLICATION[Application]
-    UC[Use Cases (tenant-aware)]
+  subgraph A[Application]
+    C1[CreateUser]
+    C2[GetUserById]
+    C3[GetAllUsers]
+    C4[UpdateUser]
+    C5[DeleteUser]
   end
 
-  subgraph DOMAIN[Domain]
-    Entities[Entities neutrales al tenant]
-    TenantContext[Tenant Context (injection)]
-    Ports[Ports que aceptan tenantId]
+  subgraph D[Domain]
+    UE[User Entity with tenantId]
+    TE[Tenant Entity]
+    UR[UserRepository Interface]
   end
 
-  subgraph INFRA[Infrastructure]
-    DB1[(DB Shared Schema with tenantId)]
-    DB2[(DB per-tenant) - optional]
-    Cache[Redis (namespaces por tenant)]
-    AuthStore[Identity Provider]
-    Config[Config Store (tenant-specific)]
+  subgraph I[Infrastructure]
+    TR[Prisma Repository]
   end
 
-  TenantAdmin1 -->|HTTP + token(tenantId)| API
-  TenantAdmin2 -->|HTTP + token(tenantId)| API
-  API --> Auth
-  API --> UC
-  UC --> TenantContext
-  TenantContext --> Ports
-  Ports --> DB1
-  Ports --> Cache
-  Ports --> AuthStore
-  Ports --> Config
-
-  note right of DB1
-    Estrategias:
-    - Shared DB con tenantId (más simple)
-    - DB por tenant (aislamiento)
-    - Schema por tenant
+  subgraph DB[Database]
+    UT[users table]
+    TT[tenants table]
   end
 
-  classDef infra fill:#eef,stroke:#333;
-  class INFRA infra;
+  H --> UC
+  M --> UC
+  U --> UC
+  
+  UC --> A
+  A --> D
+  A --> UR
+  
+  UR --> TR
+  TR --> UT
+  TR --> TT
 ```
 
-Puntos clave:
-- Autenticación incluye tenantId en tokens para identificar contexto.
-- Los use-cases son tenant-aware: reciben/inyectan el tenant context.
-- Opción A (compartido): una sola base de datos con columna tenantId.
-- Opción B (aislamiento): bases de datos o schemas separados por tenant.
-- Config y caché deben soportar namespacing por tenant.
-- En SmartParkingTwo, el código debe mantener el dominio independiente de tenant; la capa de aplicación debe ocuparse del tenant context.
+## Implementación Real de Multitenancy:
+
+### 🏗️ **User Entity con tenantId:**
+```typescript
+class User {
+    constructor(
+        readonly id: string,
+        readonly tenantId: string, // ← Campo tenantId integrado
+        readonly email: string,
+        readonly name: string,
+        // ... otros campos
+    )
+    
+    belongsToTenant(tenantUuid: string): boolean {
+        return this.tenantId === tenantUuid;
+    }
+}
+```
+
+### 🔧 **Repository con Filtrado por Tenant:**
+```typescript
+interface UserRepository {
+    findAll(tenantId: string): Promise<User[]>           // ← Filtrado por tenant
+    findById(id: string, tenantId: string): Promise<User | null>  // ← Con tenant check
+    findByEmail(email: string, tenantId: string): Promise<User | null> // ← Email único por tenant
+    update(id: string, tenantId: string, data: Partial<User>): Promise<User | null>
+    delete(id: string, tenantId: string): Promise<boolean>
+    countByTenant(tenantId: string): Promise<number>     // ← Conteo por tenant
+}
+```
+
+### 🗃️ **Estrategia de Aislamiento:**
+- **Shared Database**: Una sola base de datos PostgreSQL
+- **Tenant Column**: Campo `tenant_id` en tabla `users`
+- **Query Filtering**: Todos los queries incluyen filtro por `tenantId`
+- **Data Isolation**: Los usuarios solo ven datos de su tenant
+
+### � **Validaciones Implementadas:**
+- **tenantId Validation**: UUID format validation en User entity
+- **Email Uniqueness**: Por tenant (no globalmente)
+- **Tenant Access**: `belongsToTenant()` method para verificaciones
+- **Cross-tenant Prevention**: Repository methods requieren tenantId
+
+### 🎯 **Flujo Real:**
+1. Request llega con contexto de tenant (Hospital/Mall/Universidad)  
+2. Controller extrae tenant information del request
+3. Use Cases reciben tenantId como parámetro
+4. Repository filtra automáticamente por tenantId
+5. Solo datos del tenant específico son retornados
+
+### ✅ **Beneficios de esta Implementación:**
+- **Simple pero Efectiva**: Shared schema con tenant isolation
+- **Performance**: Single database, efficient queries
+- **Security**: Automatic tenant filtering en todas las operaciones
+- **Scalable**: Fácil agregar nuevos tenants sin changes estructurales

@@ -4,28 +4,21 @@ Breve: muestra cómo en el ejemplo `monolitico` todo está en un único archivo 
 
 ```mermaid
 flowchart TB
-  subgraph MONO[Monolítico]
+  subgraph MONO[Monolitico]
     App[monolitico.js]
   end
 
   subgraph COMPONENTS[Componentes mezclados]
-    Validation[Validación]
-    Business[Lógica de negocio]
-    Persistence[Persistencia (in-memory)]
-    Presentation[Console / I/O]
+    Validation[Validacion]
+    Business[Logica de negocio]
+    Persistence[Persistencia in-memory]
+    Presentation[Console IO]
   end
 
   App --> Validation
   App --> Business
   App --> Persistence
   App --> Presentation
-
-  note right of App
-    Problemas:
-    - Acoplamiento alto
-    - Difícil testing
-    - Lógica dispersa
-  end
 ```
 
 Puntos clave:

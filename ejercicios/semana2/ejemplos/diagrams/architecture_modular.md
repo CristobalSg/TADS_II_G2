@@ -24,14 +24,9 @@ flowchart LR
   AdminService --> AdminRepo
   AdminService --> AdminModel
   AdminRepo --> Persistence[(in-memory array)]
-
-  note right of AdminService
-    Dependencia directa en implementaciones concretas
-  end
 ```
 
 Puntos clave:
 - Mejor organización que el monolito
 - Aún hay acoplamiento a implementaciones concretas
 - Más fácil de testear que el monolito
-```

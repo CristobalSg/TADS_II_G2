@@ -1,77 +1,114 @@
-# Diagrama: Arquitectura Hexagonal aplicada a SmartParkingTwo (User Use-cases)
+# Diagrama: Arquitectura Hexagonal SmartParkingTwo - User Domain
 
-Descripción corta: diagrama que muestra cómo se organizan los componentes al aplicar la arquitectura hexagonal para los casos de uso relacionados con el "User" (registro, login, perfil, reserva).
+Diagrama simplificado que muestra la implementación hexagonal real en SmartParkingTwo enfocada en User domain, sin complejidades adicionales de multitenancy.
 
 ```mermaid
-flowchart LR
-  %% Presentación
-  subgraph EXTERNAL[Exterior]
-    User[Usuario (App / Browser / Mobile)]
+flowchart TB
+  %% External Actors
+  subgraph EXTERNAL[Actores Externos]
+    WebApp[Web Application]
+    MobileApp[Mobile App]
   end
 
-  subgraph PRESENTATION[Presentation]
-    API[API HTTP / Controllers]
-    UI[UI Layer / SDKs]
+  %% Controllers - Primary Adapters
+  subgraph CONTROLLERS[Controllers - Primary Adapters]
+    UserController[UserController.ts]
   end
 
-  subgraph APPLICATION[Application]
-    UC1[RegisterUser UseCase]
-    UC2[AuthenticateUser UseCase]
-    UC3[UpdateProfile UseCase]
-    UC4[ReserveParking UseCase]
+  %% Application Layer - Use Cases
+  subgraph APPLICATION[Application Layer]
+    CreateUserUC[CreateUserUseCase.ts]
+    GetUserByIdUC[GetUserByIdUseCase.ts] 
+    GetAllUsersUC[GetAllUsersUseCase.ts]
+    UpdateUserUC[UpdateUserUseCase.ts]
+    DeleteUserUC[DeleteUserUseCase.ts]
   end
 
-  subgraph DOMAIN[Domain]
-    Entities[Entities: User, ParkingSpot, Reservation]
-    Rules[Business Rules (validations, invariants)]
-    Ports[Ports (Interfaces): UserRepository, AuthPort, PaymentPort, NotificationPort]
+  %% Domain Core
+  subgraph DOMAIN[Domain Core]
+    UserEntity[User.ts - Entity]
+    TenantEntity[Tenant.ts - Entity]
+    
+    UserRepositoryInterface[UserRepository.ts - Interface]
+    TenantRepositoryInterface[TenantRepository.ts - Interface]
   end
 
-  subgraph INFRA[Infrastructure / Adapters]
-    Repo[PostgresUserRepository
-(mapea UserRepository)]
-    Cache[RedisCacheAdapter]
-    Email[SMTP / EmailAdapter
-(mapea NotificationPort)]
-    Payment[PaymentGatewayAdapter
-(mapea PaymentPort)]
-    AuthAdapter[JWTAuthAdapter
-(mapea AuthPort)]
+  %% Infrastructure - Secondary Adapters
+  subgraph INFRASTRUCTURE[Infrastructure - Secondary Adapters]
+    PrismaORMUserRepo[PrismaORM User Repository]
+    PrismaORMTenantRepo[PrismaORM Tenant Repository]
   end
 
-  User -->|HTTP| API
-  UI --> API
-  API -->|llama| UC1
-  API -->|llama| UC2
-  API -->|llama| UC3
-  API -->|llama| UC4
+  %% Database
+  subgraph DATABASE[Database]
+    PostgresDB[(PostgreSQL Database)]
+  end
 
-  UC1 -->|crea/valida| Entities
-  UC2 -->|valida credenciales| Entities
-  UC4 -->|genera reserva| Entities
+  %% Connections
+  EXTERNAL --> CONTROLLERS
+  CONTROLLERS --> APPLICATION
+  APPLICATION --> DOMAIN
+  APPLICATION --> UserRepositoryInterface
+  APPLICATION --> TenantRepositoryInterface
+  
+  UserRepositoryInterface <--> PrismaORMUserRepo
+  TenantRepositoryInterface <--> PrismaORMTenantRepo
+  
+  PrismaORMUserRepo --> PostgresDB
+  PrismaORMTenantRepo --> PostgresDB
 
-  UC1 -->|usa| Ports
-  UC2 -->|usa| Ports
-  UC3 -->|usa| Ports
-  UC4 -->|usa| Ports
-
-  Ports --> Repo
-  Ports --> Cache
-  Ports --> Email
-  Ports --> Payment
-  Ports --> AuthAdapter
-
-  %% notas
-  classDef layer fill:#f9f,stroke:#333,stroke-width:1px;
-  class PRESENTATION,APPLICATION,DOMAIN,INFRA layer;
-
-  click Repo "./src/infrastructure/repositories" "Repositorio concreto (ej: Postgres)"
+  %% Styles
+  classDef controllers fill:#e8f5e8,stroke:#2e7d2e,stroke-width:2px
+  classDef application fill:#fff3e0,stroke:#ef6c00,stroke-width:2px  
+  classDef domain fill:#fff0f5,stroke:#c2185b,stroke-width:3px
+  classDef infrastructure fill:#f0f8ff,stroke:#4682b4,stroke-width:2px
+  
+  class CONTROLLERS controllers
+  class APPLICATION application
+  class DOMAIN domain
+  class INFRASTRUCTURE,DATABASE infrastructure
 ```
 
-Puntos clave:
-- Los Use Cases (Application) orquestan la lógica y dependen solo de los puertos definidos en el dominio.
-- Los adaptadores (infraestructura) implementan esos puertos (repositorios, servicios de pago, email, auth).
-- La presentación (API / Controllers) es un adaptador de entrada que invoca los casos de uso.
-- El dominio (Entities y Business Rules) no conoce detalles de infraestructura ni multitenancy.
+## Implementación Real en SmartParkingTwo:
 
-Cómo usar: abrir este archivo en VSCode (o GitHub) y visualizar el bloque Mermaid (o usar extensión Mermaid Preview).
+### 🎯 **Entidades Implementadas:**
+- **User.ts**: Entity con validaciones (email, name, tenantId)
+- **Tenant.ts**: Entity para organizaciones
+
+### 🔧 **Use Cases Implementados:**
+1. **CreateUserUseCase**: Crear usuario con validaciones
+2. **GetUserByIdUseCase**: Buscar usuario por ID
+3. **GetAllUsersUseCase**: Listar todos los usuarios  
+4. **UpdateUserUseCase**: Actualizar datos de usuario
+5. **DeleteUserUseCase**: Eliminar usuario
+
+### 🔌 **Puertos (Interfaces):**
+- **UserRepository.ts**: Interface para operaciones de User
+- **TenantRepository.ts**: Interface para operaciones de Tenant
+
+### 🛠️ **Adaptadores (Infrastructure):**
+- **Prisma  ORM Repositories**: Implementaciones concretas usando Prisma
+- **PostgreSQL**: Base de datos real
+
+### ✅ **Principios Hexagonales Aplicados:**
+- **Dependency Inversion**: Use cases dependen de interfaces, no implementaciones
+- **Port & Adapters**: Interfaces claras entre capas
+- **Domain Independence**: Entities sin conocimiento de framework
+- **Infrastructure Isolation**: Database details en infrastructure layer
+
+### � **Operaciones User Reales:**
+```typescript
+// UserRepository interface methods:
+- create(user: User): Promise<User>
+- findById(id: string): Promise<User | null>  
+- findAll(): Promise<User[]>
+- findByEmail(email: string): Promise<User | null>
+- update(id: string, data: Partial<User>): Promise<User | null>
+- delete(id: string): Promise<boolean>
+```
+
+### �️ **Domain Rules Implementadas:**
+- Email format validation
+- Name length validation  
+- TenantId UUID validation
+- User belongs to tenant verification
